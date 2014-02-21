@@ -1,0 +1,28 @@
+{
+  "name": "bn-backend-cassandra",
+  "version": "0.1.0",
+  "author": "Jared Camins-Esakov <jcamins@cpbibliography.com>",
+  "description": "Cassandra backend for Biblionarrator",
+  "contributors": [
+    {
+      "name": "Jared Camins-Esakov",
+      "email": "jcamins@cpbibliography.com"
+    }
+  ],
+  "bin": {},
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/biblionarrator/bn-backend-cassandra.git"
+  },
+  "keywords": [],
+  "dependencies": {
+    "q": "0.9.x",
+    "helenus": "~0.6.8"
+  },
+  "bundledDependencies": [],
+  "license": "AGPLv3",
+  "engines": {
+    "node": ">=0.8"
+  }
+}
