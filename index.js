@@ -1,5 +1,6 @@
 "use strict";
 var util = require('util'),
+    fs = require('fs'),
     helenus = require('helenus'),
     Q = require('q');
 
@@ -78,13 +79,14 @@ function CassandraBackend(config) {
 
     this.set = function (col, key, object, callback, options) {
         options = options || { };
+        options.metadata = options.metadata || { };
         self.connect().done(function () {
-            pool.cql('CREATE COLUMNFAMILY ' + col + '(key TEXT PRIMARY KEY, value TEXT)', function (err, res) {
-                var query = 'INSERT INTO ' + col + ' (KEY, value) VALUES (?, ?)';
+            pool.cql('CREATE COLUMNFAMILY ' + col + '(key TEXT PRIMARY KEY, value TEXT, metadata TEXT)', function (err, res) {
+                var query = 'INSERT INTO ' + col + ' (KEY, value, metadata) VALUES (?, ?, ?)';
                 if (options.expiration) {
                     query += ' USING TTL=' + options.expiration;
                 }
-                pool.cql(query, [key, JSON.stringify(object)], function (err, res) {
+                pool.cql(query, [key, JSON.stringify(object), JSON.stringify(options.metadata)], function (err, res) {
                     if (typeof callback === 'function') callback(err, res);
                 });
             });
@@ -99,6 +101,35 @@ function CassandraBackend(config) {
         }, function(err) { callback(err, null); });
     };
 
+    self.media = {
+        send: function (recordid, name, res) {
+            self.connect().done(function () {
+                pool.cql('SELECT value, metadata FROM media WHERE KEY = ?', [ recordid + '_' + name ], function (err, file) {
+                    if (file && file.length > 0) {
+                        var metadata = JSON.parse(file[0][1].value);
+                        res.setHeader('Content-type', metadata.content_type);
+                        res.send(new Buffer(JSON.parse(file[0][0].value)));
+                    } else {
+                        res.send(404);
+                    }
+                });
+            });
+        },
+        save: function (recordid, name, metadata, tmppath, callback) {
+            self.connect().done(function () {
+                fs.readFile(tmppath, function (err, data) {
+                    self.set('media', recordid + '_' + name, data, function () {
+                        fs.unlink(tmppath, function () {
+                            callback(err);
+                        });
+                    }, { metadata: metadata });
+                });
+            });
+        },
+        del: function (recordid, name, callback) {
+            self.del('media', recordid + '_' + name, callback);
+        }
+    };
 
     config.backendconf = config.backendconf || { };
     config.backendconf.cassandra = config.backendconf.cassandra || { };
@@ -111,7 +142,7 @@ function CassandraBackend(config) {
 module.exports = CassandraBackend;
 module.exports.description = 'Cassandra backend (clusterable)';
 module.exports.features = {
-    datastore: true/*,
-    mediastore: true,
+    datastore: true,
+    mediastore: true/*,
     cache: true*/
 };
