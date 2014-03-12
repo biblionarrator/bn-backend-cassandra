@@ -45,34 +45,36 @@ function CassandraBackend(config) {
 
     this.get = function (col, keys, callback) {
         self.connect().done(function () {
-            var query = 'SELECT key, value FROM ' + col;
-            var params = [ ];
-            if (keys !== '*') {
-                query += ' WHERE KEY ';
-                if (util.isArray(keys)) {
-                    query += 'IN (';
-                    for (var ii; ii < keys.length; ii++) {
-                        query += (ii ? ', ' : '') + '?';
+            pool.cql('CREATE COLUMNFAMILY ' + col + '(key TEXT PRIMARY KEY, value TEXT, metadata TEXT)', function (err, res) {
+                var query = 'SELECT key, value FROM ' + col;
+                var params = [ ];
+                if (keys !== '*') {
+                    query += ' WHERE KEY ';
+                    if (util.isArray(keys)) {
+                        query += 'IN (';
+                        for (var ii; ii < keys.length; ii++) {
+                            query += (ii ? ', ' : '') + '?';
+                        }
+                        query += ')';
+                        params = keys;
+                    } else {
+                        query += '= ?';
+                        params = [ keys];
                     }
-                    query += ')';
-                    params = keys;
-                } else {
-                    query += '= ?';
-                    params = [ keys];
                 }
-            }
-            pool.cql(query, params, function (err, recs) {
-                if (recs && (keys === '*' || util.isArray(keys))) {
-                    var results = { };
-                    recs.forEach(function (row) {
-                        results[row[0].value] = JSON.parse(row[1].value);
-                    });
-                    callback(err, results);
-                } else if (recs && recs[0] && recs[0][1]) {
-                    callback(err, JSON.parse(recs[0][1].value));
-                } else {
-                    callback(err, null);
-                }
+                pool.cql(query, params, function (err, recs) {
+                    if (recs && (keys === '*' || util.isArray(keys))) {
+                        var results = { };
+                        recs.forEach(function (row) {
+                            results[row[0].value] = JSON.parse(row[1].value);
+                        });
+                        callback(err, results);
+                    } else if (recs && recs[0] && recs[0][1]) {
+                        callback(err, JSON.parse(recs[0][1].value));
+                    } else {
+                        callback(err, null);
+                    }
+                });
             });
         }, function (err) { callback(err, null); });
     }; 
